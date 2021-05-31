@@ -7,21 +7,23 @@ SPDX-License-Identifier: Apache-2.0
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hyperledger/fabric-sdk-go/pkg/core/config"
 	"github.com/hyperledger/fabric-sdk-go/pkg/gateway"
 )
 
 func main() {
-	log.Println("============ application-golang starts ============")
-
 	err := os.Setenv("DISCOVERY_AS_LOCALHOST", "true")
 	if err != nil {
 		log.Fatalf("Error setting DISCOVERY_AS_LOCALHOST environemnt variable: %v", err)
@@ -65,150 +67,354 @@ func main() {
 
 	contract := network.GetContract("basic")
 
-	if len(os.Args) == 1 {
-		log.Fatalf("Not Expected Argument")
-	}
+	r := gin.Default()
 
-	funcname := os.Args[1]
+	r.GET("/ping", ping)
+	r.GET("/InitLedger", InitLedger(contract))
+	r.POST("/ReadDID", ReadDID(contract))
+	r.POST("/ReadMedicalData", ReadMedicalData((contract)))
+	r.POST("/CreateDID", CreateDID(contract))
+	r.POST("/CreateMedicalData", CreateMedicalData(contract))
+	r.POST("/ValidateMedicalData", ValidateMedicalData(contract))
+	r.POST("/ShareMedicalData", ShareMedicalData(contract))
 
-	if funcname == "ReadCA" {
-		if len(os.Args) != 3 {
-			log.Fatalf("Not Expected Argument")
-		}
-		ReadCA(contract, os.Args[2])
-	} else if funcname == "ReadDID" {
-		if len(os.Args) != 3 {
-			log.Fatalf("Not Expected Argument")
-		}
-		ReadDID(contract, os.Args[2])
-	} else if funcname == "ReadMedicalData" {
-		if len(os.Args) != 3 {
-			log.Fatalf("Not Expected Argument")
-		}
-		ReadMedicalData(contract, os.Args[2])
-	} else if funcname == "CreateCA" {
-		if len(os.Args) != 7 {
-			log.Fatalf("Not Expected Argument")
-		}
-		CreateCA(contract, os.Args[2], os.Args[3], os.Args[4], os.Args[5], os.Args[6])
-	} else if funcname == "CreateDID" {
-		if len(os.Args) != 4 {
-			log.Fatalf("Not Expected Argument")
-		}
-		CreateDID(contract, os.Args[2], os.Args[3])
-	} else if funcname == "CreateMedicalData" {
-		if len(os.Args) != 6 {
-			log.Fatalf("Not Expected Argument")
-		}
-		CreateMedicalData(contract, os.Args[2], os.Args[3], os.Args[4], os.Args[5])
-	} else if funcname == "ValidateMedicalData" {
-		if len(os.Args) != 4 {
-			log.Fatalf("Not Expected Argument")
-		}
-		ValidateMedicalData(contract, os.Args[2], os.Args[3])
-	} else if funcname == "ShareMedicalData" {
-		if len(os.Args) != 4 {
-			log.Fatalf("Not Expected Argument")
-		}
-		ShareMedicalData(contract, os.Args[2], os.Args[3])
-	} else if funcname == "InitLedger" {
-		if len(os.Args) != 2 {
-			log.Fatalf("Not Expected Argument")
-		}
-		InitLedger(contract)
-	} else {
-		log.Fatalf("Not Expected Argument")
-	}
-
-	log.Println("============ application-golang ends ============")
+	r.Run(":8085") // listen and serve on 0.0.0.0:8080
 }
 
-func InitLedger(contract *gateway.Contract) {
-	log.Println("--> Submit Transaction: InitLedger, function creates the initial set of assets on the ledger")
-	result, err := contract.SubmitTransaction("InitLedger")
-	if err != nil {
-		log.Fatalf("Failed to Submit transaction: %v", err)
-	}
-	log.Println(string(result))
+func ping(c *gin.Context) {
+	c.JSON(200, gin.H{
+		"message": "pong",
+	})
 }
 
-func ReadCA(contract *gateway.Contract, id string) {
-	log.Println("--> Evaluate Transaction: ReadCA, function returns CA on the ledger")
-	result, err := contract.EvaluateTransaction("ReadCA", id)
-	if err != nil {
-		log.Fatalf("Failed to evaluate transaction: %v", err)
+// 	} else if funcname == "CreateCA" {
+// 		if len(os.Args) != 7 {
+// 			log.Fatalf("Not Expected Argument")
+// 		}
+// 		CreateCA(contract, os.Args[2], os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+// 	} else if funcname == "CreateDID" {
+// 		if len(os.Args) != 4 {
+// 			log.Fatalf("Not Expected Argument")
+// 		}
+// 		CreateDID(contract, os.Args[2], os.Args[3])
+// 	} else if funcname == "CreateMedicalData" {
+// 		if len(os.Args) != 6 {
+// 			log.Fatalf("Not Expected Argument")
+// 		}
+// 		CreateMedicalData(contract, os.Args[2], os.Args[3], os.Args[4], os.Args[5])
+// 	} else if funcname == "ValidateMedicalData" {
+// 		if len(os.Args) != 4 {
+// 			log.Fatalf("Not Expected Argument")
+// 		}
+// 		ValidateMedicalData(contract, os.Args[2], os.Args[3])
+// 	} else if funcname == "ShareMedicalData" {
+// 		if len(os.Args) != 4 {
+// 			log.Fatalf("Not Expected Argument")
+// 		}
+// 		ShareMedicalData(contract, os.Args[2], os.Args[3])
+// 	} else if funcname == "InitLedger" {
+// 		if len(os.Args) != 2 {
+// 			log.Fatalf("Not Expected Argument")
+// 		}
+// 		InitLedger(contract)
+// 	} else {
+// 		log.Fatalf("Not Expected Argument")
+// 	}
+
+// 	log.Println("============ application-golang ends ============")
+// }
+
+func InitLedger(contract *gateway.Contract) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		log.Println("--> Submit Transaction: InitLedger, function creates the initial set of assets on the ledger")
+		result, err := contract.SubmitTransaction("InitLedger")
+		if err != nil {
+			log.Fatalf("Failed to Submit transaction: %v", err)
+		}
+		c.JSON(200, gin.H{
+			"message": string(result),
+		})
 	}
-	log.Println(string(result))
+	return gin.HandlerFunc(fn)
 }
 
-func ReadDID(contract *gateway.Contract, id string) {
-	log.Println("--> Evaluate Transaction: ReadDID, function returns DID on the ledger")
-	result, err := contract.EvaluateTransaction("ReadDID", id)
-	if err != nil {
-		log.Fatalf("Failed to evaluate transaction: %v", err)
+func ReadDID(contract *gateway.Contract) gin.HandlerFunc {
+	// params: JSON {DID: DID}
+	fn := func(c *gin.Context) {
+		log.Println("--> Evaluate Transaction: ReadDID, function returns DID on the ledger")
+
+		type Data struct {
+			DID string `form:"DID" json:"DID" binding:"required"`
+		}
+
+		var data Data
+		if err := c.ShouldBind(&data); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Error",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		log.Println(data.DID)
+		result, err := contract.EvaluateTransaction("ReadDID", data.DID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Faild to evaluate transaction: " + err.Error(),
+			})
+			return
+		}
+		log.Println(string(result))
+
+		c.JSON(200, gin.H{
+			"message": string(result),
+		})
+
 	}
-	log.Println(string(result))
+	return gin.HandlerFunc(fn)
 }
 
-func ReadMedicalData(contract *gateway.Contract, hash string) {
-	log.Println("--> Evaluate Transaction: ReadMedicalData, function returns MedicalData on the ledger")
-	result, err := contract.EvaluateTransaction("ReadMedicalData", hash)
-	if err != nil {
-		log.Fatalf("Failed to evaluate transaction: %v", err)
+func ReadMedicalData(contract *gateway.Contract) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		log.Println("--> Evaluate Transaction: ReadMedicalData, function returns MedicalData on the ledger")
+
+		type Data struct {
+			Hash string `form:"Hash" json:"Hash" binding:"required"`
+		}
+
+		var data Data
+		if err := c.ShouldBind(&data); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Error",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		result, err := contract.EvaluateTransaction("ReadMedicalData", data.Hash)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Error",
+				"error":   "Faild to evaluate transaction: " + err.Error(),
+			})
+			return
+		}
+
+		log.Println(string(result))
+		c.JSON(200, gin.H{
+			"message": string(result),
+		})
 	}
-	log.Println(string(result))
+	return gin.HandlerFunc(fn)
 }
 
-func CreateCA(contract *gateway.Contract, id, attr, keytype, controller, key string) {
-	log.Println("--> Submit Transaction: CreateCA, creates new CA with ID, Attrubute, Keytype, Controller, and Key arguments")
-	result, err := contract.SubmitTransaction("CreateCA", id, attr, keytype, controller, key)
-	if err != nil {
-		log.Fatalf("Failed to Submit transaction: %v", err)
+// func CreateCA(contract *gateway.Contract) gin.HandlerFunc {
+// 	fn := func(c *gin.Context) {
+// 		log.Println("--> Submit Transaction: CreateCA, creates new CA with ID, Attrubute, Keytype, Controller, and Key arguments")
+
+// 		type Data struct {
+// 			DID        string `form:"DID" json:"DID" binding:"required"`
+// 			Attribute  string `form:"Attribute" json:"Attribute" binding:"required"`
+// 			Keytype    string `form:"Keytype" json:"Keytype" binding:"required"`
+// 			Controller string `form:"Controller" json:"Controller" binding:"required"`
+// 			Key        string `form:"Key" json:"Key" binding:"required"`
+// 		}
+
+// 		var data Data
+// 		if err := c.ShouldBind(&data); err != nil {
+// 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 			return
+// 		}
+
+// 		result, err := contract.SubmitTransaction("CreateCA", data.DID, data.Attribute, data.Keytype, data.Controller, data.Key)
+// 		if err != nil {
+// 			c.JSON(http.StatusBadRequest, gin.H{
+// 				"error": "Faild to evaluate transaction: " + err.Error(),
+// 			})
+// 			return
+// 		}
+
+// 		log.Println(string(result))
+// 		c.JSON(200, gin.H{
+// 			"message": string(result),
+// 		})
+// 	}
+// 	return gin.HandlerFunc(fn)
+// }
+
+func CreateDID(contract *gateway.Contract) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		log.Println("--> Submit Transaction: CreateDID, creates new DID with DID and AuthID arguments")
+
+		type Data struct {
+			DID        string `form:"DID" json:"DID" binding:"required"`
+			AuthID     string `form:"AuthID" json:"AuthID" binding:"required"`
+			Attribute  string `form:"Attribute" json:"Attribute" binding:"required"`
+			Keytype    string `form:"Keytype" json:"Keytype" binding:"required"`
+			Controller string `form:"Controller" json:"Controller" binding:"required"`
+			Key        string `form:"Key" json:"Key" binding:"required"`
+		}
+
+		var data Data
+		if err := c.ShouldBind(&data); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Error",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		result, err := contract.SubmitTransaction("CreateDID", data.DID, data.AuthID, data.Attribute, data.Keytype, data.Controller, data.Key)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Error",
+				"error":   "Faild to evaluate transaction: " + err.Error(),
+			})
+			return
+		}
+
+		log.Println(string(result))
+		c.JSON(200, gin.H{
+			"message": data.DID + " is created.",
+		})
 	}
-	log.Println(string(result))
+	return gin.HandlerFunc(fn)
 }
 
-func CreateDID(contract *gateway.Contract, did, authid string) {
-	log.Println("--> Submit Transaction: CreateDID, creates new DID with DID and AuthID arguments")
-	result, err := contract.SubmitTransaction("CreateDID", did, authid)
-	if err != nil {
-		log.Fatalf("Failed to Submit transaction: %v", err)
+func CreateMedicalData(contract *gateway.Contract) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		log.Println("--> Submit Transaction: CreateMedicalData, creates new MedicalData with Hash, AccessLevel, Metadata and OwnerID arguments")
+
+		type Data struct {
+			// MedicalData []byte `form:"MedicalData" json:"MedicalData" binding:"required"`
+			AccessLevel string `form:"AccessLevel" json:"AccessLevel" binding:"required"`
+			Metadata    string `form:"Metadata" json:"Metadata" binding:"required"`
+			OwnerID     string `form:"OwnerID" json:"OwnerID" binding:"required"`
+		}
+
+		file, _, err := c.Request.FormFile("MedicalData")
+		if err != nil {
+			c.String(http.StatusBadRequest, fmt.Sprintf("get form err: %s", err.Error()))
+			return
+		}
+
+		buf := bytes.NewBuffer(nil)
+		if _, err := io.Copy(buf, file); err != nil {
+			return
+		}
+
+		var data Data
+		if err := c.ShouldBind(&data); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Error",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		hash := sha256.Sum256(buf.Bytes())
+
+		hashstr := hex.EncodeToString(hash[:])
+
+		log.Println(hashstr)
+
+		result, err := contract.SubmitTransaction("CreateMedicalData", hashstr, data.AccessLevel, data.Metadata, data.OwnerID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Error",
+				"error":   "Faild to evaluate transaction: " + err.Error(),
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": hashstr + " is created.",
+		})
+
 	}
-	log.Println(string(result))
+	return gin.HandlerFunc(fn)
 }
 
-func CreateMedicalData(contract *gateway.Contract, fileloc string, accesslevel string, metadata string, owner string) {
-	log.Println("--> Submit Transaction: CreateMedicalData, creates new MedicalData with Hash, AccessLevel, Metadata and OwnerID arguments")
+func ValidateMedicalData(contract *gateway.Contract) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		log.Println("--> Submit Transaction: ValidateMedicalData, validates MedicalData's Owner with Hash and OwnerID arguments")
 
-	dat, err := ioutil.ReadFile(fileloc)
+		type Data struct {
+			// MedicalData []byte `form:"MedicalData" json:"MedicalData" binding:"required"`
+			Hash string `form:"Hash" json:"Hash" binding:"required"`
+			DID  string `form:"DID" json:"DID" binding:"required"`
+		}
 
-	hash := sha256.Sum256(dat)
+		var data Data
+		if err := c.ShouldBind(&data); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Error",
+				"error":   err.Error(),
+			})
+			return
+		}
 
-	hashstr := hex.EncodeToString(hash[:])
+		result, err := contract.SubmitTransaction("ValidateMedicalData", data.Hash, data.DID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Error",
+				"error":   "Faild to evaluate transaction: " + err.Error(),
+			})
+			return
+		}
 
-	result, err := contract.SubmitTransaction("CreateMedicalData", hashstr, accesslevel, metadata, owner)
-	if err != nil {
-		log.Fatalf("Failed to Submit transaction: %v", err)
+		if string(result) == "true" {
+			c.JSON(200, gin.H{
+				"message": "DID " + data.DID + " is validated",
+			})
+		} else {
+			c.JSON(200, gin.H{
+				"message": "DID " + data.DID + " is not validated",
+			})
+		}
+		log.Println(string(result))
 	}
-	log.Println(string(result), `Hash: `, hashstr)
+	return gin.HandlerFunc(fn)
 }
 
-func ValidateMedicalData(contract *gateway.Contract, hash, did string) {
-	log.Println("--> Submit Transaction: ValidateMedicalData, validates MedicalData's Owner with Hash and OwnerID arguments")
-	result, err := contract.SubmitTransaction("ValidateMedicalData", hash, did)
-	if err != nil {
-		log.Fatalf("Failed to Submit transaction: %v", err)
-	}
-	log.Println(string(result))
-}
+func ShareMedicalData(contract *gateway.Contract) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		log.Println("--> Submit Transaction: ValidateMedicalData, validates MedicalData's Owner with Hash and OwnerID arguments")
 
-func ShareMedicalData(contract *gateway.Contract, hash, did string) {
-	log.Println("--> Submit Transaction: ValidateMedicalData, validates MedicalData's Owner with Hash and OwnerID arguments")
-	result, err := contract.SubmitTransaction("ShareMedicalData", hash, did)
-	if err != nil {
-		log.Fatalf("Failed to Submit transaction: %v", err)
+		type Data struct {
+			// MedicalData []byte `form:"MedicalData" json:"MedicalData" binding:"required"`
+			Hash string `form:"Hash" json:"Hash" binding:"required"`
+			DID  string `form:"DID" json:"DID" binding:"required"`
+		}
+
+		var data Data
+		if err := c.ShouldBind(&data); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Error",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		result, err := contract.SubmitTransaction("ShareMedicalData", data.Hash, data.DID)
+		if err != nil {
+			log.Fatalf("Failed to Submit transaction: %v", err)
+		}
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Error",
+				"error":   "Faild to evaluate transaction: " + err.Error(),
+			})
+			return
+		}
+
+		log.Println(string(result))
+		c.JSON(200, gin.H{
+			"message": string(result),
+		})
+		log.Println(string(result))
 	}
-	log.Println(string(result))
+	return gin.HandlerFunc(fn)
 }
 
 // log.Println("--> Evaluate Transaction: ReadAsset, function returns 'asset1' attributes")

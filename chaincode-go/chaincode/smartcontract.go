@@ -26,6 +26,7 @@ type AuthInfo struct {
 type DID struct {
 	DID      string     `json:"DID"`
 	AuthInfo []AuthInfo `json:"authinfo"`
+	Sign     string     `json:"sign:`
 }
 
 // MedicalData
