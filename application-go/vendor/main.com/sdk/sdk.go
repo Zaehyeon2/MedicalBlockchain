@@ -141,7 +141,7 @@ func ReadMedicalData(contract *gateway.Contract) gin.HandlerFunc {
 
 func CreateDID(contract *gateway.Contract) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		log.Println("--> Submit Transaction: CreateDID, creates new DID with DID and AuthID arguments")
+		log.Println("--> Submit Transaction: CreateDID, creates new DID with DID and AuthID argumentssss")
 
 		type Data struct {
 			DID        string `form:"DID" json:"DID" binding:"required"`
@@ -150,6 +150,7 @@ func CreateDID(contract *gateway.Contract) gin.HandlerFunc {
 			Keytype    string `form:"Keytype" json:"Keytype" binding:"required"`
 			Controller string `form:"Controller" json:"Controller" binding:"required"`
 			Key        string `form:"Key" json:"Key" binding:"required"`
+			Sign       string `form:"Sign" json:"Sing" binding:"required"`
 		}
 
 		var data Data
@@ -161,7 +162,7 @@ func CreateDID(contract *gateway.Contract) gin.HandlerFunc {
 			return
 		}
 
-		result, err := contract.SubmitTransaction("CreateDID", data.DID, data.AuthID, data.Attribute, data.Keytype, data.Controller, data.Key)
+		result, err := contract.SubmitTransaction("CreateDID", data.DID, data.AuthID, data.Attribute, data.Keytype, data.Controller, data.Key, data.Sign)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"message": "Error",
@@ -294,9 +295,6 @@ func ShareMedicalData(contract *gateway.Contract) gin.HandlerFunc {
 		}
 
 		result, err := contract.SubmitTransaction("ShareMedicalData", data.Hash, data.DID)
-		if err != nil {
-			log.Fatalf("Failed to Submit transaction: %v", err)
-		}
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"message": "Error",
