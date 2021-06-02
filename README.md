@@ -4,13 +4,13 @@
 
 MedicalBlockchain  
 └ application-go  
-  └ Application.go        API code        (golang-gin)  
-  └ sdk  
-    └sdk.go               SDK code       (golang)  
+  └─ Application.go        API code        (golang-gin)  
+  └─ sdk  
+    └── sdk.go               SDK code       (golang)  
 └ chaincode-go  
-  └ assetTransfer.go  
-  └ chaincode  
-    └ smartcontract.go    Chaindcode   (golang)  
+  └─ assetTransfer.go  
+  └─ chaincode  
+    └── smartcontract.go    Chaindcode   (golang)  
 
 
 
