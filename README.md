@@ -2,15 +2,15 @@
 
 ### Source Tree
 
-MedicalBlockchain
+MedicalBlockchain  
 └ application-go  
-  └ Application.go			API code        (golang-gin)  
+  └ Application.go        API code        (golang-gin)  
   └ sdk  
-    └sdk.go						 SDK code       (golang)  
+    └sdk.go               SDK code       (golang)  
 └ chaincode-go  
   └ assetTransfer.go  
   └ chaincode  
-    └ smartcontract.go	 Chaindcode   (golang)  
+    └ smartcontract.go    Chaindcode   (golang)  
 
 
 
