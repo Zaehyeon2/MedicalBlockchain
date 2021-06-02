@@ -303,10 +303,15 @@ func ShareMedicalData(contract *gateway.Contract) gin.HandlerFunc {
 			return
 		}
 
-		log.Println(string(result))
-		c.JSON(200, gin.H{
-			"message": string(result),
-		})
+		if string(result) == "true" {
+			c.JSON(200, gin.H{
+				"message": "ShareRequest MedicalData " + data.Hash,
+			})
+		} else {
+			c.JSON(200, gin.H{
+				"message": "Error",
+			})
+		}
 		log.Println(string(result))
 	}
 	return gin.HandlerFunc(fn)

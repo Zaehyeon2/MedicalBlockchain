@@ -37,34 +37,21 @@ type MedicalData struct {
 	Owner       string `json:"owner"`
 }
 
-// // Validate Time Fucntion
-// func TimeValidate(did1, did2 DID, comp string) bool {
-// 	d1, _ := time.Parse(time.RFC3339, did1.Issue_date)
-// 	d2, _ := time.Parse(time.RFC3339, did2.Issue_date)
-// 	if comp == "equal" {
-// 		return d1.Equal(d2)
-// 	} else if comp == "before" {
-// 		return d1.Before(d2)
-// 	} else if comp == "after" {
-// 		return d1.After(d2)
-// 	} else {
-// 		fmt.Println("third argument is expected {equal, before, after}")
-// 		return false
-// 	}
-
-// }
-
 // InitLedger adds a base set of CA to the ledger
 func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
 	CA := []DID{
 		{"did:CA:000001", []AuthInfo{{"did:CA:000001#keys-1", "CertificationAuthority", "Secp256k1", "did:CA:000001",
-			"MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEqHA9txbYf7uFrY7toGYN/e1gkdXRlSzJdU2XBELvigoapbLIY/rObffay1/vNXSSokyuW6TdgJIg0j0nJj27qw==", time.Now().Format(time.RFC3339)}}},
+			"MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEAiCSg/jaymN9G087hAY4vH8hn0eq1tqYuVNjJ8F+INPU7ba58YPlvbJaNLAJn22gvQ0fMi1Bc0twwKUd5NGTBQ==", time.Now().Format(time.RFC3339)}},
+			"MEQCIFzf1VNdgSXIGNKdOpP80URh3Uxe6Z0apINz78aSmU6XAiAPO6BdrT4vQkwekFI1kz1pofp+XKwd5TnOPAIKC2R3Nw=="},
 		{"did:CA:000002", []AuthInfo{{"did:CA:000002#keys-1", "CertificationAuthority", "Secp256k1",
-			"did:CA:000002", "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEp92Jko3ZJhd1gCy0S9gTbZI7KfJpWZu7FXC5zkyVQyzuvRJOWhA/xRuOoMHYvcMKFQRpiMEje+SkREdYQuf0Cw==", time.Now().Format(time.RFC3339)}}},
+			"did:CA:000002", "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAE8K51BFNKq7vWJcSaQ5yLROodJHPQdAqsjK9TCW/yfEcwEWzDGfA7hIOH1R1a0gFrYcBXSfoHczGgxUxMpMVz4A==", time.Now().Format(time.RFC3339)}},
+			"MEQCIHk02CaV761fWeD6V9E9caZvaeCU9rKkyl8EIuVxR/yoAiAZ3Mk/cmXGE2rXfMjEiCw5y2ZaaaTdV2wcsjCtKH1VXQ=="},
 		{"did:CA:000003", []AuthInfo{{"did:CA:000003#keys-1", "CertificationAuthority", "Secp256k1",
-			"did:CA:000003", "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEGIMRLmPuO8G+DAngk1nlnYaRA8bogaRqAW4Fi9MO1YddLgMiG09sJN463QPhC3p4ytW51FgjHK4Lp+phXbUyJA==", time.Now().Format(time.RFC3339)}}},
+			"did:CA:000003", "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEmR9mRDAkmZzElNf3OCWyFuZPV2vtILIlLjj4+GL0E39f1daSBvhOiOeJdqsnlmWjf57jX5fRRvJ7lrvm6ZZpKA==", time.Now().Format(time.RFC3339)}},
+			"MEYCIQD4PCNQFQ1kWQMfSjdjWI3nTLWpRJjuBCV0m04P+Bw3mQIhAOi5NUvMUpz2sttKqbWFsGtkQY3ww1IGRlGovqla3le1"},
 		{"did:CA:000004", []AuthInfo{{"did:CA:000004#keys-1", "CertificationAuthority", "Secp256k1",
-			"did:CA:000004", "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEh4XkJVR5w1W5yXzM0M+jErjQFXKumu5DB7A1IvbPmHmTHEtKCn/uitWGfPhdk7oCsXo59chYG71uVibVwOpJSg==", time.Now().Format(time.RFC3339)}}},
+			"did:CA:000004", "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAELzx4l3awsI0Du1zz74w/HJe5cVFE3yORVjaZ/Hd0UXt+26bzDm8vlorT8T806ByKXA70wVesZkzgdtk8X+Yq0Q==", time.Now().Format(time.RFC3339)}},
+			"MEQCIEIoeHjkn68A6jI6Fr6USoJGYA3fZF6ONBHJBR2ebEdnAiBYhEnYCrreLzYk50V+jUllsqju5Mp3LKbDHavkugi+/Q=="},
 	}
 
 	for _, CA := range CA {
@@ -107,45 +94,9 @@ func (s *SmartContract) AssetExists(ctx contractapi.TransactionContextInterface,
 	return assetJSON != nil, nil
 }
 
-// AuthInfo
-// type CertificationAuthority struct {
-// 	Id         string `json:"authid"`
-// 	Attribute  string `json:"attribute"`
-// 	Keytype    string `json:"keytype"`
-// 	Controller string `json:"controller"`
-// 	Key        string `json:"pubkey"`
-// }
-
-// CreateCA issues a new CA to the world state with given details.
-// func (s *SmartContract) CreateCA(ctx contractapi.TransactionContextInterface,
-// 	id, attr, keytype, controller, key string) error {
-// 	exists, err := s.AssetExists(ctx, id)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if exists {
-// 		return fmt.Errorf("the asset %s already exists", id)
-// 	}
-
-// 	asset := CertificationAuthority{
-// 		id,
-// 		attr,
-// 		keytype,
-// 		controller,
-// 		key,
-// 	}
-
-// 	assetJSON, err := json.Marshal(asset)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	return ctx.GetStub().PutState(id, assetJSON)
-// }
-
 // CreateDID issues a new DID to the world state with given details.
 func (s *SmartContract) CreateDID(ctx contractapi.TransactionContextInterface,
-	did string, authid, attr, keytype, controller, key string) error {
+	did string, authid, attr, keytype, controller, key, sign string) error {
 	exists, err := s.AssetExists(ctx, did)
 	if err != nil {
 		return err
@@ -154,15 +105,10 @@ func (s *SmartContract) CreateDID(ctx contractapi.TransactionContextInterface,
 		return fmt.Errorf("the asset %s already exists", did)
 	}
 
-	// aid, err := s.ReadDID(ctx, authid)
-
-	// if err != nil {
-	// 	return err
-	// }
-
 	asset := DID{
 		DID:      did,
 		AuthInfo: []AuthInfo{{authid, attr, keytype, controller, key, time.Now().Format(time.RFC3339)}},
+		Sign:     sign,
 	}
 
 	assetJSON, err := json.Marshal(asset)
@@ -301,11 +247,9 @@ func (s *SmartContract) ShareMedicalData(ctx contractapi.TransactionContextInter
 		return false, err
 	}
 
-	if int(MD.AccessLevel) < 2 {
+	if DD.AuthInfo[0].Attribute == "Patient" {
 		return false, fmt.Errorf("AccessLevel X")
 	}
-
-	// To Do: Request Share MD
 
 	return true, nil
 }
