@@ -105,3 +105,5 @@ go run Application.go
 | Hash | MedicalData's hash value                          | string    | 32d03797d413...    |
 | DID  | DID to verify ownership of medical data for share | string    | did:Patient:000001 |
 
+### Read /InitLedger
+
